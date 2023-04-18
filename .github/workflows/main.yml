@@ -146,49 +146,6 @@ jobs:
           name: 'obs-studio-windows-${{ matrix.arch }}-${{ steps.setup.outputs.commitHash }}'
           path: '${{ env.FILE_NAME }}'
 
-  # linux_package:
-    name: '02 - Flatpak'
-    runs-on: [ubuntu-latest]
-    needs: [clang_check]
-    if: always()
-    defaults:
-      run:
-        shell: bash
-    container:
-      image: bilelmoussaoui/flatpak-github-actions:kde-6.4
-      options: --privileged
-    steps:
-      - name: 'Check for Github Labels'
-        if: github.event_name == 'pull_request'
-        run: |
-          if ! /usr/bin/command -v "jq" >/dev/null 2>&1; then sudo dnf install -y -q jq; fi
-          if test -n "$(curl -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -s "${{ github.event.pull_request.url }}" | jq -e '.labels[] | select(.name == "Seeking Testers")')"; then
-            echo "SEEKING_TESTERS=1" >> $GITHUB_ENV
-          else
-            echo "SEEKING_TESTERS=0" >> $GITHUB_ENV
-          fi
-
-      - name: 'Checkout'
-        uses: actions/checkout@v3
-        with:
-          submodules: 'recursive'
-          fetch-depth: 0
-
-      - name: 'Setup build environment'
-        run: |
-          git config --global --add safe.directory $GITHUB_WORKSPACE
-          echo "OBS_GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)" >> $GITHUB_ENV
-          echo "OBS_GIT_HASH=$(git rev-parse --short=9 HEAD)" >> $GITHUB_ENV
-          echo "OBS_GIT_TAG=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
-
-      - name: Build Flatpak Manifest
-        uses: flatpak/flatpak-github-actions/flatpak-builder@v5
-        with:
-          build-bundle: ${{ github.event_name != 'pull_request' || env.SEEKING_TESTERS == '1' }}
-          bundle: obs-studio-flatpak-${{ env.OBS_GIT_HASH }}.flatpak
-          manifest-path: CI/flatpak/com.obsproject.Studio.json
-          cache-key: flatpak-builder-${{ hashFiles('CI/flatpak/com.obsproject.Studio.json') }}
-
   windows_package:
     name: '03 - Windows Installer'
     runs-on: [windows-latest]
